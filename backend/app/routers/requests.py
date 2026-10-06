@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Assignment, Building, Category, Request, RequestStatus, StatusHistory, Team
 from app.schemas import RequestCreate, RequestDetail, RequestOut, RequestUpdate, SimilarQuery, SimilarRequest
+from app.services.clusters import assign_to_cluster
 from app.services.embeddings import embed, request_text
 from app.services.similarity import find_similar
 from app.services.triage import triage
@@ -43,6 +44,8 @@ def create_request(body: RequestCreate, db: Session = Depends(get_db)):
 
     # The request is already saved; if Jev fails it just stays "new".
     triage(db, req)
+    # After triage, so the cluster knows the category and priority.
+    assign_to_cluster(db, req)
     return req
 
 

@@ -30,6 +30,7 @@ export type DormRequest = {
   category: Category | null
   team: Team | null
   duplicate_of: number | null
+  cluster_id: number | null
   created_at: string
   updated_at: string
   resolved_at: string | null
@@ -119,3 +120,33 @@ export const findSimilarToDraft = (draft: { title: string; description: string; 
   api<SimilarRequest[]>('/requests/similar', { method: 'POST', body: JSON.stringify(draft) })
 
 export const getSimilar = (id: number) => api<SimilarRequest[]>(`/requests/${id}/similar`)
+
+export type ClusterStatus = 'active' | 'resolved' | 'dismissed'
+
+export type Cluster = {
+  id: number
+  title: string
+  status: ClusterStatus
+  request_count: number
+  max_priority: number | null
+  building: Building | null
+  category: Category | null
+  first_seen: string
+  last_seen: string
+  resolved_at: string | null
+  resolution_note: string | null
+}
+
+export type ClusterDetail = Cluster & { requests: DormRequest[] }
+
+export const listClusters = (status: ClusterStatus = 'active') => api<Cluster[]>(`/clusters?status=${status}`)
+
+export const getCluster = (id: number) => api<ClusterDetail>(`/clusters/${id}`)
+
+// Fired after an emerging issue is closed so the nav badge can update.
+export const CLUSTERS_CHANGED = 'signaldesk:clusters-changed'
+
+export const resolveCluster = (
+  id: number,
+  body: { status: 'resolved' | 'dismissed'; note?: string; resolve_requests: boolean },
+) => api<ClusterDetail>(`/clusters/${id}/resolve`, { method: 'POST', body: JSON.stringify(body) })

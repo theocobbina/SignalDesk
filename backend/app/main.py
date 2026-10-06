@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import health, reference, requests
+from app.routers import clusters, health, reference, requests
 from app.services.embeddings import get_model
 
 
@@ -29,3 +29,4 @@ app.add_middleware(
 app.include_router(health.router, prefix="/api")
 app.include_router(reference.router, prefix="/api")
 app.include_router(requests.router, prefix="/api")
+app.include_router(clusters.router, prefix="/api")

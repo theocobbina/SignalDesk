@@ -4,7 +4,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models import RequestStatus
+from typing import Literal
+
+from app.models import ClusterStatus, RequestStatus
 
 
 class ORM(BaseModel):
@@ -68,6 +70,7 @@ class RequestOut(ORM):
     category: CategoryOut | None
     team: TeamOut | None
     duplicate_of: int | None
+    cluster_id: int | None
     created_at: datetime
     updated_at: datetime
     resolved_at: datetime | None
@@ -101,3 +104,28 @@ class SimilarQuery(BaseModel):
 class SimilarRequest(BaseModel):
     request: RequestOut
     similarity: float
+
+
+class ClusterOut(ORM):
+    id: int
+    title: str
+    status: ClusterStatus
+    request_count: int
+    max_priority: int | None
+    building: BuildingOut | None
+    category: CategoryOut | None
+    first_seen: datetime
+    last_seen: datetime
+    resolved_at: datetime | None
+    resolution_note: str | None
+
+
+class ClusterDetail(ClusterOut):
+    requests: list[RequestOut]
+
+
+class ClusterResolve(BaseModel):
+    status: Literal[ClusterStatus.resolved, ClusterStatus.dismissed] = ClusterStatus.resolved
+    note: str | None = Field(default=None, max_length=1000)
+    # Also mark every open report in the cluster as resolved.
+    resolve_requests: bool = True

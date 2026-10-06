@@ -13,7 +13,7 @@ Dormitory issue reporting with AI triage. Students report problems, **Jev** (Typ
 
 ### 1. Supabase
 1. Create a project at https://supabase.com.
-2. **SQL Editor** → paste and run `supabase/migrations/0001_init.sql`, then `0002_lock_down_handle_new_user.sql`, then `supabase/seed.sql`.
+2. **SQL Editor** → paste and run `supabase/migrations/0001_init.sql`, then the other files in `supabase/migrations/` in order, then `supabase/seed.sql`.
 
 ### 2. Backend
 Fill in `backend/.env` (`OPENROUTER_API_KEY`, `DATABASE_URL`), then:
@@ -32,9 +32,9 @@ npm run dev                                  # http://localhost:5173
 
 ## Roadmap
 1. ✅ Foundation: project structure, schema, Jev client
-2. Core app: submit and manage requests
-3. Jev triage + human review queue for low-confidence predictions
-4. Similar-issue detection (SentenceTransformers + pgvector)
-5. Emerging-issue alerts
+2. ✅ Core app: submit and manage requests
+3. ✅ Jev triage + human review queue for low-confidence predictions
+4. ✅ Similar-issue detection (SentenceTransformers + pgvector)
+5. ✅ Emerging-issue alerts
 6. Dashboard
 7. Auth and roles

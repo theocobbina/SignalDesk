@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import ClusterCard from '../components/ClusterCard'
 import { PriorityBadge, SafetyBadge, StatusBadge } from '../components/badges'
 import { STATUS_LABELS } from '../lib/labels'
 import {
   getBuildings,
   getCategories,
+  listClusters,
   listRequests,
   type Building,
   type Category,
+  type Cluster,
   type DormRequest,
   type RequestFilters,
   type RequestStatus,
@@ -20,6 +23,7 @@ export default function RequestList() {
   const [requests, setRequests] = useState<DormRequest[] | null>(null)
   const [buildings, setBuildings] = useState<Building[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [clusters, setClusters] = useState<Cluster[]>([])
   const [filters, setFilters] = useState<RequestFilters>({})
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -27,6 +31,7 @@ export default function RequestList() {
   useEffect(() => {
     getBuildings().then(setBuildings)
     getCategories().then(setCategories)
+    listClusters('active').then(setClusters).catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -79,6 +84,14 @@ export default function RequestList() {
           </select>
         </div>
       </div>
+
+      {clusters.length > 0 && (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {clusters.slice(0, 2).map((c) => (
+            <ClusterCard key={c.id} cluster={c} />
+          ))}
+        </div>
+      )}
 
       {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 

@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     safety_hazard_threshold: float = 0.5
     # Cosine similarity at or above which two requests count as "similar".
     similarity_threshold: float = 0.5
+    # Emerging issues: this many similar reports from one building within the window.
+    cluster_min_size: int = 3
+    cluster_window_hours: int = 48
+    cluster_similarity_threshold: float = 0.55
     database_url: str = ""
     frontend_origin: str = "http://localhost:5173"
 

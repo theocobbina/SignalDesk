@@ -25,8 +25,15 @@ class RequestStatus(str, enum.Enum):
     rejected = "rejected"
 
 
+class ClusterStatus(str, enum.Enum):
+    active = "active"
+    resolved = "resolved"
+    dismissed = "dismissed"
+
+
 # The type already exists in Postgres; never let SQLAlchemy try to create it.
 status_enum = SAEnum(RequestStatus, name="request_status", create_type=False)
+cluster_status_enum = SAEnum(ClusterStatus, name="cluster_status", create_type=False)
 
 
 class Team(Base):
@@ -73,6 +80,7 @@ class Request(Base):
 
     embedding = mapped_column(Vector(384), nullable=True)
     duplicate_of: Mapped[int | None] = mapped_column(ForeignKey("requests.id"))
+    cluster_id: Mapped[int | None] = mapped_column(ForeignKey("issue_clusters.id"))
 
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
@@ -130,3 +138,27 @@ class Prediction(Base):
     latency_ms: Mapped[int | None]
     raw: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class IssueCluster(Base):
+    """An emerging issue: several similar reports from one building in a short window."""
+
+    __tablename__ = "issue_clusters"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    building_id: Mapped[int | None] = mapped_column(ForeignKey("buildings.id"))
+    category_slug: Mapped[str | None] = mapped_column(ForeignKey("categories.slug"))
+    title: Mapped[str]
+    status: Mapped[ClusterStatus] = mapped_column(cluster_status_enum, default=ClusterStatus.active)
+    request_count: Mapped[int] = mapped_column(default=0)
+    max_priority: Mapped[int | None] = mapped_column(SmallInteger)
+    centroid = mapped_column(Vector(384), nullable=True)
+    first_seen: Mapped[datetime]
+    last_seen: Mapped[datetime]
+    resolved_at: Mapped[datetime | None]
+    resolution_note: Mapped[str | None]
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    building: Mapped[Building | None] = relationship(lazy="joined")
+    category: Mapped[Category | None] = relationship(lazy="joined")
+    requests: Mapped[list[Request]] = relationship(order_by=Request.created_at, lazy="selectin")

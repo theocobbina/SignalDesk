@@ -93,6 +93,16 @@ export default function RequestDetail() {
             <p className="mt-4 whitespace-pre-wrap text-gray-800">{req.description}</p>
           </section>
 
+          {req.cluster_id && (
+            <Link
+              to={`/issues/${req.cluster_id}`}
+              className="block rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900 hover:bg-red-100/60"
+            >
+              🚨 Part of <span className="font-semibold">emerging issue #{req.cluster_id}</span>: other residents in this building
+              reported something similar. View all reports →
+            </Link>
+          )}
+
           {req.duplicate_of && (
             <div className="rounded-lg border bg-gray-100 p-4 text-sm text-gray-700">
               Closed as a duplicate of{' '}
