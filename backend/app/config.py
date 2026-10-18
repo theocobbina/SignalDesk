@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     cluster_window_hours: int = 48
     cluster_similarity_threshold: float = 0.55
     database_url: str = ""
+    # Used to verify login tokens against the project's public signing keys (JWKS).
+    supabase_url: str = ""
     frontend_origin: str = "http://localhost:5173"
 
     @property

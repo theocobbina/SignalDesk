@@ -25,6 +25,12 @@ class RequestStatus(str, enum.Enum):
     rejected = "rejected"
 
 
+class UserRole(str, enum.Enum):
+    student = "student"
+    staff = "staff"
+    admin = "admin"
+
+
 class ClusterStatus(str, enum.Enum):
     active = "active"
     resolved = "resolved"
@@ -34,6 +40,7 @@ class ClusterStatus(str, enum.Enum):
 # The type already exists in Postgres; never let SQLAlchemy try to create it.
 status_enum = SAEnum(RequestStatus, name="request_status", create_type=False)
 cluster_status_enum = SAEnum(ClusterStatus, name="cluster_status", create_type=False)
+role_enum = SAEnum(UserRole, name="user_role", create_type=False)
 
 
 class Team(Base):
@@ -62,11 +69,32 @@ class Category(Base):
     default_team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"))
 
 
+class Profile(Base):
+    """One row per Supabase Auth user (created by the on_auth_user_created trigger)."""
+
+    __tablename__ = "profiles"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    full_name: Mapped[str | None]
+    role: Mapped[UserRole] = mapped_column(role_enum, default=UserRole.student)
+    building_id: Mapped[int | None] = mapped_column(ForeignKey("buildings.id"))
+    room: Mapped[str | None]
+    team_id: Mapped[int | None] = mapped_column(ForeignKey("teams.id"))
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    building: Mapped[Building | None] = relationship(lazy="joined")
+    team: Mapped[Team | None] = relationship(lazy="joined")
+
+    @property
+    def is_staff(self) -> bool:
+        return self.role in (UserRole.staff, UserRole.admin)
+
+
 class Request(Base):
     __tablename__ = "requests"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    reporter_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    reporter_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("profiles.id"))
     building_id: Mapped[int | None] = mapped_column(ForeignKey("buildings.id"))
     room: Mapped[str | None]
     title: Mapped[str]
@@ -87,6 +115,7 @@ class Request(Base):
     resolved_at: Mapped[datetime | None]
 
     building: Mapped[Building | None] = relationship(lazy="joined")
+    reporter: Mapped[Profile | None] = relationship(lazy="joined")
     category: Mapped[Category | None] = relationship(lazy="joined")
     team: Mapped[Team | None] = relationship(lazy="joined")
     history: Mapped[list["StatusHistory"]] = relationship(

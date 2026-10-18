@@ -1,12 +1,12 @@
 """Pydantic request/response bodies for the API."""
 
+import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from typing import Literal
-
-from app.models import ClusterStatus, RequestStatus
+from app.models import ClusterStatus, RequestStatus, UserRole
 
 
 class ORM(BaseModel):
@@ -31,6 +31,11 @@ class CategoryOut(ORM):
     name: str
     description: str
     default_team_id: int | None
+
+
+class ReporterOut(ORM):
+    id: uuid.UUID
+    full_name: str | None
 
 
 class StatusHistoryOut(ORM):
@@ -69,6 +74,7 @@ class RequestOut(ORM):
     building: BuildingOut | None
     category: CategoryOut | None
     team: TeamOut | None
+    reporter: ReporterOut | None
     duplicate_of: int | None
     cluster_id: int | None
     created_at: datetime
@@ -129,3 +135,37 @@ class ClusterResolve(BaseModel):
     note: str | None = Field(default=None, max_length=1000)
     # Also mark every open report in the cluster as resolved.
     resolve_requests: bool = True
+
+
+class ProfileOut(ORM):
+    id: uuid.UUID
+    email: str | None = None
+    full_name: str | None
+    role: UserRole
+    building: BuildingOut | None
+    room: str | None
+    team: TeamOut | None
+
+
+class ProfileUpdate(BaseModel):
+    full_name: str | None = Field(default=None, max_length=100)
+    building_id: int | None = None
+    room: str | None = Field(default=None, max_length=20)
+
+
+class UserOut(BaseModel):
+    id: uuid.UUID
+    email: str | None
+    full_name: str | None
+    role: UserRole
+    team_id: int | None
+    building_id: int | None
+    room: str | None
+    created_at: datetime
+
+
+class UserUpdate(BaseModel):
+    """Admin edits to another user."""
+
+    role: UserRole | None = None
+    team_id: int | None = None

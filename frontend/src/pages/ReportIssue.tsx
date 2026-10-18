@@ -9,15 +9,18 @@ import {
   type DormRequestDetail,
   type SimilarRequest,
 } from '../lib/api'
+import { useAuth } from '../lib/authContext'
 import { PRIORITY_LABELS } from '../lib/labels'
 
 const input =
   'mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none'
 
 export default function ReportIssue() {
+  const { profile } = useAuth()
   const [buildings, setBuildings] = useState<Building[]>([])
-  const [buildingId, setBuildingId] = useState('')
-  const [room, setRoom] = useState('')
+  // Prefilled from the student's profile; they can still change it for a report elsewhere.
+  const [buildingId, setBuildingId] = useState(profile?.building ? String(profile.building.id) : '')
+  const [room, setRoom] = useState(profile?.room ?? '')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -53,7 +56,6 @@ export default function ReportIssue() {
         description,
       })
       setCreated(req)
-      setRoom('')
       setTitle('')
       setDescription('')
     } catch (e) {

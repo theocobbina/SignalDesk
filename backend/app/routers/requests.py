@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import current_user, staff_user
 from app.db import get_db
-from app.models import Assignment, Building, Category, Request, RequestStatus, StatusHistory, Team
+from app.models import Assignment, Building, Category, Profile, Request, RequestStatus, StatusHistory, Team
 from app.schemas import RequestCreate, RequestDetail, RequestOut, RequestUpdate, SimilarQuery, SimilarRequest
 from app.services.clusters import assign_to_cluster
 from app.services.embeddings import embed, request_text
@@ -19,20 +20,30 @@ router = APIRouter(prefix="/requests", tags=["requests"])
 CLOSED_STATUSES = {RequestStatus.resolved, RequestStatus.closed, RequestStatus.rejected}
 
 
-def _get_or_404(db: Session, request_id: int) -> Request:
+def _get_or_404(db: Session, request_id: int, user: Profile | None = None) -> Request:
+    """Fetch a request. Students may only see their own (others look like 404)."""
     req = db.get(Request, request_id)
-    if req is None:
+    if req is None or (user is not None and not user.is_staff and req.reporter_id != user.id):
         raise HTTPException(404, "Request not found")
     return req
 
 
+def _detail(req: Request, user: Profile) -> RequestDetail:
+    """Students don't see the raw AI prediction data; staff do."""
+    detail = RequestDetail.model_validate(req)
+    if not user.is_staff:
+        detail.predictions = []
+    return detail
+
+
 @router.post("", response_model=RequestDetail, status_code=201)
-def create_request(body: RequestCreate, db: Session = Depends(get_db)):
+def create_request(body: RequestCreate, user: Profile = Depends(current_user), db: Session = Depends(get_db)):
     if db.get(Building, body.building_id) is None:
         raise HTTPException(422, "Unknown building")
 
     req = Request(
         **body.model_dump(),
+        reporter_id=user.id,
         status=RequestStatus.new,
         embedding=embed(request_text(body.title, body.description)),
     )
@@ -46,11 +57,11 @@ def create_request(body: RequestCreate, db: Session = Depends(get_db)):
     triage(db, req)
     # After triage, so the cluster knows the category and priority.
     assign_to_cluster(db, req)
-    return req
+    return _detail(req, user)
 
 
 @router.post("/similar", response_model=list[SimilarRequest])
-def similar_to_draft(body: SimilarQuery, db: Session = Depends(get_db)):
+def similar_to_draft(body: SimilarQuery, _: Profile = Depends(current_user), db: Session = Depends(get_db)):
     """Open requests similar to a report the student is still typing."""
     matches = find_similar(
         db,
@@ -71,9 +82,13 @@ def list_requests(
     q: str | None = Query(default=None, description="Search title and description"),
     limit: int = Query(default=50, le=200),
     offset: int = 0,
+    mine: bool = Query(default=False, description="Only requests I reported"),
+    user: Profile = Depends(current_user),
     db: Session = Depends(get_db),
 ):
     stmt = select(Request)
+    if mine or not user.is_staff:
+        stmt = stmt.where(Request.reporter_id == user.id)
     if status:
         stmt = stmt.where(Request.status == status)
     if building_id:
@@ -92,12 +107,12 @@ def list_requests(
 
 
 @router.get("/{request_id}", response_model=RequestDetail)
-def get_request(request_id: int, db: Session = Depends(get_db)):
-    return _get_or_404(db, request_id)
+def get_request(request_id: int, user: Profile = Depends(current_user), db: Session = Depends(get_db)):
+    return _detail(_get_or_404(db, request_id, user), user)
 
 
 @router.get("/{request_id}/similar", response_model=list[SimilarRequest])
-def similar_to_request(request_id: int, db: Session = Depends(get_db)):
+def similar_to_request(request_id: int, _: Profile = Depends(staff_user), db: Session = Depends(get_db)):
     """Possible duplicates of an existing request, in the same building."""
     req = _get_or_404(db, request_id)
     if req.embedding is None:
@@ -107,7 +122,7 @@ def similar_to_request(request_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{request_id}/triage", response_model=RequestDetail)
-def retriage_request(request_id: int, db: Session = Depends(get_db)):
+def retriage_request(request_id: int, _: Profile = Depends(staff_user), db: Session = Depends(get_db)):
     """Run Jev again, e.g. after it was down or the description changed."""
     req = _get_or_404(db, request_id)
     if triage(db, req) is None:
@@ -116,7 +131,9 @@ def retriage_request(request_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{request_id}", response_model=RequestDetail)
-def update_request(request_id: int, body: RequestUpdate, db: Session = Depends(get_db)):
+def update_request(
+    request_id: int, body: RequestUpdate, user: Profile = Depends(staff_user), db: Session = Depends(get_db)
+):
     req = _get_or_404(db, request_id)
     changes = body.model_dump(exclude_unset=True)
     note = changes.pop("note", None)
@@ -136,19 +153,27 @@ def update_request(request_id: int, body: RequestUpdate, db: Session = Depends(g
         if changes["team_id"] != req.team_id:
             for a in db.scalars(select(Assignment).where(Assignment.request_id == req.id, Assignment.active)):
                 a.active = False
-            db.add(Assignment(request_id=req.id, team_id=changes["team_id"]))
+            db.add(Assignment(request_id=req.id, team_id=changes["team_id"], assigned_by=user.id))
 
     new_status = changes.pop("status", None)
     for field, value in changes.items():
         setattr(req, field, value)
 
     if new_status is not None and new_status != req.status:
-        db.add(StatusHistory(request_id=req.id, from_status=req.status, to_status=new_status, note=note))
+        db.add(
+            StatusHistory(
+                request_id=req.id, from_status=req.status, to_status=new_status, note=note, changed_by=user.id
+            )
+        )
         req.status = new_status
         req.resolved_at = datetime.now(timezone.utc) if new_status in CLOSED_STATUSES else None
     elif note:
         # A comment without a status change still goes on the timeline.
-        db.add(StatusHistory(request_id=req.id, from_status=req.status, to_status=req.status, note=note))
+        db.add(
+            StatusHistory(
+                request_id=req.id, from_status=req.status, to_status=req.status, note=note, changed_by=user.id
+            )
+        )
 
     db.commit()
     db.refresh(req)

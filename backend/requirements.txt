@@ -6,3 +6,5 @@ pgvector>=0.3
 pydantic-settings>=2.6
 typesafe-sdk
 sentence-transformers>=3.0
+pyjwt[crypto]>=2.9
+certifi

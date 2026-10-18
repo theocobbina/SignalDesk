@@ -4,12 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth import staff_user
 from app.db import get_db
 from app.models import ClusterStatus, IssueCluster
 from app.schemas import ClusterDetail, ClusterOut, ClusterResolve
 from app.services.clusters import resolve_cluster
 
-router = APIRouter(prefix="/clusters", tags=["emerging issues"])
+router = APIRouter(prefix="/clusters", tags=["emerging issues"], dependencies=[Depends(staff_user)])
 
 
 @router.get("", response_model=list[ClusterOut])

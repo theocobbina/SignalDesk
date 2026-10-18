@@ -18,6 +18,7 @@ import {
   type SimilarRequest,
   type Team,
 } from '../lib/api'
+import { useAuth } from '../lib/authContext'
 import { timeAgo } from '../lib/format'
 
 // Typical next steps for each status; any status can still be picked from the dropdown.
@@ -33,6 +34,7 @@ const select = 'mt-1 block w-full rounded-md border border-gray-300 bg-white px-
 
 export default function RequestDetail() {
   const id = Number(useParams().id)
+  const { isStaff } = useAuth()
   const [req, setReq] = useState<DormRequestDetail | null>(null)
   const [teams, setTeams] = useState<Team[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -45,8 +47,8 @@ export default function RequestDetail() {
     getRequest(id).then(setReq).catch((e) => setError(e.message))
     getTeams().then(setTeams)
     getCategories().then(setCategories)
-    getSimilar(id).then(setSimilar).catch(() => setSimilar([]))
-  }, [id])
+    if (isStaff) getSimilar(id).then(setSimilar).catch(() => setSimilar([]))
+  }, [id, isStaff])
 
   async function run(action: () => Promise<DormRequestDetail>) {
     setSaving(true)
@@ -72,7 +74,7 @@ export default function RequestDetail() {
   return (
     <div>
       <Link to="/requests" className="text-sm text-gray-500 hover:text-gray-900">
-        ← All requests
+        ← {isStaff ? 'All requests' : 'My reports'}
       </Link>
 
       <div className="mt-4 grid gap-6 lg:grid-cols-3">
@@ -89,11 +91,19 @@ export default function RequestDetail() {
             <p className="mt-1 text-sm text-gray-500">
               {req.building?.name}
               {req.room && ` · Room ${req.room}`} · reported {timeAgo(req.created_at)}
+              {isStaff && req.reporter?.full_name && ` by ${req.reporter.full_name}`}
             </p>
             <p className="mt-4 whitespace-pre-wrap text-gray-800">{req.description}</p>
           </section>
 
-          {req.cluster_id && (
+          {req.cluster_id && !isStaff && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
+              Other residents in your building reported something similar. Staff are handling these reports together as
+              one issue.
+            </div>
+          )}
+
+          {req.cluster_id && isStaff && (
             <Link
               to={`/issues/${req.cluster_id}`}
               className="block rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900 hover:bg-red-100/60"
@@ -113,16 +123,18 @@ export default function RequestDetail() {
             </div>
           )}
 
-          {req.status === 'needs_review' && (
+          {isStaff && req.status === 'needs_review' && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
               <span className="font-semibold">Needs review.</span> The AI wasn't confident about this one. Check the
               category and team, then mark it triaged.
             </div>
           )}
 
-          <AiTriagePanel prediction={req.predictions[0]} categories={categories} onRetriage={retriage} busy={saving} />
+          {isStaff && (
+            <AiTriagePanel prediction={req.predictions[0]} categories={categories} onRetriage={retriage} busy={saving} />
+          )}
 
-          {similar.length > 0 && (
+          {isStaff && similar.length > 0 && (
             <section className="rounded-lg border bg-white p-6 shadow-sm">
               <h2 className="font-semibold">Possible duplicates</h2>
               <p className="mt-1 text-xs text-gray-500">Reports in the same building describing a similar problem.</p>
@@ -170,7 +182,26 @@ export default function RequestDetail() {
           </section>
         </div>
 
-        {/* Right: staff controls */}
+        {/* Right: staff controls, or a summary for the student who reported it */}
+        {!isStaff ? (
+          <aside className="space-y-3 self-start rounded-lg border bg-white p-6 text-sm shadow-sm">
+            <h2 className="font-semibold">Details</h2>
+            <p>
+              <span className="text-gray-500">Status:</span> {STATUS_LABELS[req.status]}
+            </p>
+            <p>
+              <span className="text-gray-500">Category:</span> {req.category?.name ?? 'Being reviewed'}
+            </p>
+            <p>
+              <span className="text-gray-500">Handled by:</span> {req.team?.name ?? 'Being assigned'}
+            </p>
+            {req.resolved_at && (
+              <p>
+                <span className="text-gray-500">Closed:</span> {new Date(req.resolved_at).toLocaleString()}
+              </p>
+            )}
+          </aside>
+        ) : (
         <aside className="space-y-4 rounded-lg border bg-white p-6 shadow-sm">
           <h2 className="font-semibold">Manage</h2>
 
@@ -271,6 +302,7 @@ export default function RequestDetail() {
 
           {error && <p className="text-sm text-red-600">{error}</p>}
         </aside>
+        )}
       </div>
     </div>
   )

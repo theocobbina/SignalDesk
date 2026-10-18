@@ -15,11 +15,13 @@ import {
   type RequestFilters,
   type RequestStatus,
 } from '../lib/api'
+import { useAuth } from '../lib/authContext'
 import { timeAgo } from '../lib/format'
 
 const select = 'rounded-md border border-gray-300 bg-white px-2 py-1.5 text-sm'
 
 export default function RequestList() {
+  const { isStaff } = useAuth()
   const [requests, setRequests] = useState<DormRequest[] | null>(null)
   const [buildings, setBuildings] = useState<Building[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -31,8 +33,8 @@ export default function RequestList() {
   useEffect(() => {
     getBuildings().then(setBuildings)
     getCategories().then(setCategories)
-    listClusters('active').then(setClusters).catch(() => {})
-  }, [])
+    if (isStaff) listClusters('active').then(setClusters).catch(() => {})
+  }, [isStaff])
 
   useEffect(() => {
     // Debounce typing in the search box.
@@ -50,7 +52,10 @@ export default function RequestList() {
   return (
     <div>
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Requests</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">{isStaff ? 'Requests' : 'My reports'}</h1>
+          {!isStaff && <p className="text-sm text-gray-600">Issues you've reported and their progress.</p>}
+        </div>
         <div className="flex flex-wrap gap-2">
           <input
             value={search}

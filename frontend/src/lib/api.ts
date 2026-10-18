@@ -1,3 +1,5 @@
+import { supabase } from './supabase'
+
 export type RequestStatus =
   | 'new'
   | 'needs_review'
@@ -29,6 +31,7 @@ export type DormRequest = {
   building: Building | null
   category: Category | null
   team: Team | null
+  reporter: { id: string; full_name: string | null } | null
   duplicate_of: number | null
   cluster_id: number | null
   created_at: string
@@ -74,12 +77,20 @@ export type RequestFilters = Partial<{
   category: string
   team_id: number
   q: string
+  mine: boolean
 }>
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  // Send the Supabase login token so the backend knows who is asking.
+  const { data } = await supabase.auth.getSession()
+  const token = data.session?.access_token
   const res = await fetch(`/api${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...init?.headers,
+    },
   })
   if (!res.ok) {
     const body = await res.json().catch(() => null)
@@ -150,3 +161,61 @@ export const resolveCluster = (
   id: number,
   body: { status: 'resolved' | 'dismissed'; note?: string; resolve_requests: boolean },
 ) => api<ClusterDetail>(`/clusters/${id}/resolve`, { method: 'POST', body: JSON.stringify(body) })
+
+export type Stats = {
+  days: number
+  kpis: {
+    reports: number
+    open: number
+    needs_review: number
+    urgent_open: number
+    median_resolution_hours: number | null
+    active_issues: number
+  }
+  daily: { date: string; count: number }[]
+  by_category: { slug: string; name: string; count: number; open: number }[]
+  by_building: { code: string; name: string; count: number; open: number }[]
+  open_by_priority: { priority: number; count: number }[]
+  ai: {
+    triaged: number
+    auto_routed_rate: number | null
+    category_agreement: number | null
+    avg_latency_ms: number | null
+    cost_usd: number | null
+  }
+}
+
+export const getStats = (days: number) => api<Stats>(`/stats?days=${days}`)
+
+export type UserRole = 'student' | 'staff' | 'admin'
+
+export type Profile = {
+  id: string
+  email: string | null
+  full_name: string | null
+  role: UserRole
+  building: Building | null
+  room: string | null
+  team: Team | null
+}
+
+export const getMe = () => api<Profile>('/me')
+
+export const updateMe = (changes: { full_name?: string; building_id?: number | null; room?: string | null }) =>
+  api<Profile>('/me', { method: 'PATCH', body: JSON.stringify(changes) })
+
+export type UserRow = {
+  id: string
+  email: string | null
+  full_name: string | null
+  role: UserRole
+  team_id: number | null
+  building_id: number | null
+  room: string | null
+  created_at: string
+}
+
+export const listUsers = () => api<UserRow[]>('/users')
+
+export const updateUser = (id: string, changes: { role?: UserRole; team_id?: number | null }) =>
+  api<UserRow>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(changes) })
