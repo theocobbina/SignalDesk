@@ -4,3 +4,7 @@ __pycache__/
 node_modules/
 dist/
 .DS_Store
+
+# Local Claude Code config (dev server launch, MCP connection)
+.claude/
+.mcp.json
