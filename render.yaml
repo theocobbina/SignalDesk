@@ -1,0 +1,24 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Deploys SignalDesk as a single Docker web service (React app + FastAPI API).
+services:
+  - type: web
+    name: signaldesk
+    runtime: docker
+    plan: free
+    region: virginia
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Secrets: you'll be asked to fill these in on Render when creating the service.
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      # Public values (the publishable key is meant to be shipped to browsers).
+      - key: SUPABASE_URL
+        value: https://ngsgpuvdjotqakkojqmn.supabase.co
+      - key: VITE_SUPABASE_URL
+        value: https://ngsgpuvdjotqakkojqmn.supabase.co
+      - key: VITE_SUPABASE_ANON_KEY
+        value: sb_publishable_BWWO0J3_3ZaR86yRLMEZjg_8pkWDjFV

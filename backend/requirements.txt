@@ -5,6 +5,6 @@ psycopg[binary]>=3.2
 pgvector>=0.3
 pydantic-settings>=2.6
 typesafe-sdk
-sentence-transformers>=3.0
+fastembed>=0.7
 pyjwt[crypto]>=2.9
 certifi

@@ -39,6 +39,14 @@ cd backend
 ```
 Admins can promote other users to **staff** from the Users page.
 
+## Deploy (Render)
+The app deploys as one Docker service: FastAPI serves the API and the built React app.
+1. On [Render](https://render.com), **New → Blueprint**, pick this repo (uses `render.yaml`).
+2. Fill in the secrets it asks for: `OPENROUTER_API_KEY` and `DATABASE_URL` (Supabase session pooler string).
+3. In Supabase → **Authentication → URL Configuration**, add the Render URL (e.g. `https://signaldesk.onrender.com`) as the Site URL and a Redirect URL.
+
+The free plan sleeps after ~15 minutes idle; the first visit after that takes ~30–60 s.
+
 ## Roles
 | Role | Can do |
 |---|---|
@@ -50,7 +58,7 @@ Admins can promote other users to **staff** from the Users page.
 1. ✅ Foundation: project structure, schema, Jev client
 2. ✅ Core app: submit and manage requests
 3. ✅ Jev triage + human review queue for low-confidence predictions
-4. ✅ Similar-issue detection (SentenceTransformers + pgvector)
+4. ✅ Similar-issue detection (all-MiniLM-L6-v2 via fastembed + pgvector)
 5. ✅ Emerging-issue alerts
 6. ✅ Dashboard
 7. ✅ Auth and roles

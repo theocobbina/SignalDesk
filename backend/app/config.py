@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     # Used to verify login tokens against the project's public signing keys (JWKS).
     supabase_url: str = ""
     frontend_origin: str = "http://localhost:5173"
+    # Built React app to serve from this server (production). Ignored if the folder doesn't exist.
+    frontend_dist: Path = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 
     @property
     def sqlalchemy_url(self) -> str:
