@@ -8,6 +8,7 @@ import EmergingIssues from './pages/EmergingIssues'
 import Login from './pages/Login'
 import ProfilePage from './pages/ProfilePage'
 import ReportIssue from './pages/ReportIssue'
+import ResetPassword from './pages/ResetPassword'
 import RequestDetail from './pages/RequestDetail'
 import RequestList from './pages/RequestList'
 import Users from './pages/Users'
@@ -19,6 +20,7 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="login" element={<Login />} />
+            <Route path="reset-password" element={<ResetPassword />} />
 
             {/* Any signed-in user. Students only ever see their own requests. */}
             <Route index element={<RequireAuth><ReportIssue /></RequireAuth>} />

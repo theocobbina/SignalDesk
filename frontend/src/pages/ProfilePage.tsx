@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { getBuildings, updateMe, type Building } from '../lib/api'
 import { useAuth } from '../lib/authContext'
 
@@ -90,6 +91,13 @@ export default function ProfilePage() {
           {saving ? 'Saving…' : 'Save'}
         </button>
       </form>
+
+      <p className="mt-4 text-sm text-gray-600">
+        Want a new password?{' '}
+        <Link to="/reset-password" className="font-medium text-blue-600 hover:underline">
+          Change password
+        </Link>
+      </p>
     </div>
   )
 }
